@@ -21,6 +21,7 @@ DAMP = 0.006
 KAPPA = 0.28
 SIGMA = 1.55
 CENTER = (N - 1) / 2
+STADIUM = (18.0, 22.0)    # straight half-length, cap radius (new-geometry test)
 STEP = C * DT            # cells travelled per step
 
 
@@ -34,16 +35,28 @@ def _shift_mask(arr, axis, sign):
 
 
 class Cavity:
-    def __init__(self, K=8, fraction=1.0):
-        self.K, self.fraction = K, fraction
+    def __init__(self, K=8, fraction=1.0, shape="ellipse"):
+        self.K, self.fraction, self.shape = K, fraction, shape
         yy, xx = np.mgrid[:N, :N]
         X, Y = xx - CENTER, yy - CENTER
-        self.inside = (X / A_AX) ** 2 + (Y / B_AX) ** 2 <= 1.0
-        f = np.sqrt(A_AX ** 2 - B_AX ** 2)
-        self.sources = [(round(CENTER), round(CENTER - f)), (round(CENTER + 8), round(CENTER - f)),
-                        (round(CENTER - 8), round(CENTER - f))]
-        self.receiver = (round(CENTER), round(CENTER + f))
-        angle = np.arctan2(Y / B_AX, X / A_AX)
+        if shape == "ellipse":
+            self.inside = (X / A_AX) ** 2 + (Y / B_AX) ** 2 <= 1.0
+            f = np.sqrt(A_AX ** 2 - B_AX ** 2)
+            self.sources = [(round(CENTER), round(CENTER - f)), (round(CENTER + 8), round(CENTER - f)),
+                            (round(CENTER - 8), round(CENTER - f))]
+            self.receiver = (round(CENTER), round(CENTER + f))
+            angle = np.arctan2(Y / B_AX, X / A_AX)
+        elif shape == "stadium":
+            # Bunimovich stadium: straight half-length L, cap radius R (chaotic ray dynamics,
+            # no foci).  Source and receiver deliberately off every symmetry axis.
+            L, R = STADIUM
+            self.inside = ((np.abs(X) <= L) & (np.abs(Y) <= R)) | ((np.abs(X) - L) ** 2 + Y ** 2 <= R ** 2)
+            self.sources = [(round(CENTER + 3), round(CENTER - 30)), (round(CENTER + 11), round(CENTER - 30)),
+                            (round(CENTER - 5), round(CENTER - 30))]
+            self.receiver = (round(CENTER + 6), round(CENTER + 29))
+            angle = np.arctan2(Y / R, X / (L + R))
+        else:
+            raise ValueError(shape)
         pos = ((angle + np.pi) / (2 * np.pi)) * K               # sector coordinate in [0, K)
         self.sector = np.floor(pos).astype(int) % K
         frac_in = pos - np.floor(pos)                           # position inside the sector
