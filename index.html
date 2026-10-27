@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wall Memory Law</title>
+<style>
+:root{--bg:#0f1115;--panel:#171a21;--ink:#e8e6e1;--dim:#9aa0a8;--line:#2a2f39;--acc:#e0b04a;--acc2:#5fb3c9;--good:#7cc27a;--bad:#d9665b}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#f6f4ef;--panel:#fff;--ink:#1d1f23;--dim:#5d636b;--line:#dcd8cf;--acc:#9a6b00;--acc2:#1f7a92;--good:#2f7d32;--bad:#b23b30}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1180px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:26px;margin:0 0 4px}h2{font-size:18px;margin:26px 0 6px}
+.sub{color:var(--dim);margin:0 0 16px;max-width:860px}
+.row{display:grid;grid-template-columns:minmax(0,500px) minmax(0,1fr);gap:16px}
+@media (max-width:900px){.row{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+.card h3{margin:0 0 8px;font-size:13px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+canvas{width:100%;height:auto;display:block;border-radius:6px}
+#cav{image-rendering:pixelated;cursor:crosshair;background:#000}
+.bar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:8px 0}
+.bar label{color:var(--dim);font-size:13px;display:flex;gap:6px;align-items:center}
+select,button{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:5px 10px}
+button{cursor:pointer}button:hover{border-color:var(--acc)}
+input[type=range]{accent-color:var(--acc);width:150px}
+.note{color:var(--dim);font-size:13px}
+.stat{color:var(--acc);font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left}th{color:var(--dim);font-weight:600}
+.pass{color:var(--good);font-weight:600}.fail{color:var(--bad);font-weight:600}
+code{font-size:13px}
+</style>
+</head>
+<body>
+<main>
+<h1>Wall Memory Law</h1>
+<p class="sub">An elliptical cavity whose wall patches can be written (a Robin spring, after Sol's <a href="https://github.com/anttiluode/Kavitaatio">Kavitaatio</a>). A ping from one focus reads the wall at the other. Several written patches <em>interact</em>: the echo is not the sum of their single echoes. A k-patch interaction can only arrive along a path that touches all k patches, so it switches on at that path's travel time. <b>The listening window therefore sets the polynomial degree of the memory, and the geometry predicts it.</b> Click wall patches to write them, ping, then measure their interaction.</p>
+
+<div class="row">
+  <div class="card">
+    <h3>cavity · click the wall to write a patch</h3>
+    <canvas id="cav" width="96" height="96"></canvas>
+    <div class="bar">
+      <label>patches <select id="K"><option value="8">8 (full sectors, Kavitaatio)</option><option value="16">16 (half sectors, gaps)</option></select></label>
+      <label>source <select id="src"><option value="0">focus</option><option value="1">focus +8</option><option value="2">focus −8</option></select></label>
+    </div>
+    <div class="bar">
+      <button id="ping">ping</button>
+      <button id="clear">clear wall</button>
+      <button id="inter">measure interaction of written patches</button>
+    </div>
+    <div class="note" id="status">written: none</div>
+  </div>
+  <div>
+    <div class="card"><h3>echo at the receiver: written wall minus blank wall</h3><canvas id="echo" width="640" height="200"></canvas>
+      <div class="note">amber = this wall's echo change · teal = sum of the written patches' single-patch changes (what an additive memory model predicts)</div></div>
+    <div class="card" style="margin-top:14px"><h3>interaction of the written set (inclusion–exclusion, log scale)</h3><canvas id="intc" width="640" height="220"></canvas>
+      <div class="note" id="intnote">Write 2–7 patches and press <b>measure interaction</b>. The dashed line is the shortest scattering tour source → every written patch → receiver, divided by the wave speed; the shaded band is the 40-step margin.</div></div>
+  </div>
+</div>
+
+<h2>The law in numbers</h2>
+<div class="row">
+  <div class="card"><h3>K = 8: window vs degree (all 256 states known)</h3><div id="k8"></div></div>
+  <div class="card"><h3>K = 16: pre-registered test (65,536 states, never all simulated)</h3><div id="k16">loading…</div></div>
+</div>
+<p class="note">Code, pre-registration and receipts: <a href="https://github.com/anttiluode/WallMemoryLaw">github.com/anttiluode/WallMemoryLaw</a>. Same discretisation as Kavitaatio (96×96, c = 0.65, dt = 0.5, damping 0.006, Robin 0.28 per face).</p>
+</main>
+
+<script>
+"use strict";
+const N = 96, C = 0.65, DT = 0.5, DAMP = 0.006, KAPPA = 0.28, SIG = 1.55, CEN = (N - 1) / 2, A = 36, B = 27, STEP = C * DT;
+const F = Math.sqrt(A * A - B * B);
+const SOURCES = [[Math.round(CEN), Math.round(CEN - F)], [Math.round(CEN + 8), Math.round(CEN - F)], [Math.round(CEN - 8), Math.round(CEN - F)]];
+const RECV = [Math.round(CEN), Math.round(CEN + F)];
+const NN = N * N, $ = id => document.getElementById(id);
+const inside = new Uint8Array(NN), neigh = new Float64Array(NN);
+for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const X = x - CEN, Y = y - CEN; inside[y * N + x] = (X / A) ** 2 + (Y / B) ** 2 <= 1 ? 1 : 0; }
+const ins = (y, x) => y >= 0 && y < N && x >= 0 && x < N && inside[y * N + x];
+for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (inside[y * N + x]) neigh[y * N + x] = ins(y - 1, x) + ins(y + 1, x) + ins(y, x - 1) + ins(y, x + 1);
+
+let K = 8, frac = 1, counts = [], written = new Set(), srcIdx = 0;
+function buildPatches() {
+  counts = []; for (let k = 0; k < K; k++) counts.push(new Float64Array(NN));
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const i = y * N + x; if (!inside[i]) continue;
+    const missing = 4 - neigh[i]; if (missing <= 0) continue;
+    const ang = Math.atan2((y - CEN) / B, (x - CEN) / A), pos = (ang + Math.PI) / (2 * Math.PI) * K;
+    const k = ((Math.floor(pos) % K) + K) % K, f = pos - Math.floor(pos);
+    if (Math.abs(f - 0.5) <= frac / 2 + 1e-12) counts[k][i] = missing;
+  }
+}
+function patchPoints(k) { const p = []; for (let i = 0; i < NN; i++) if (counts[k][i] > 0) p.push([Math.floor(i / N), i % N]); return p; }
+
+function simulate(bits, src, steps, keepFrames) {
+  const robin = new Float64Array(NN);
+  bits.forEach(k => { const c = counts[k]; for (let i = 0; i < NN; i++) robin[i] += KAPPA * c[i]; });
+  let u = new Float64Array(NN), prev = new Float64Array(NN), nxt = new Float64Array(NN);
+  const [sy, sx] = SOURCES[src];
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (inside[y * N + x]) u[y * N + x] = Math.exp(-((x - sx) ** 2 + (y - sy) ** 2) / (2 * SIG * SIG));
+  const tr = new Float64Array(steps), frames = [];
+  const c2 = (C * DT) ** 2, a = 1 + DAMP * DT / 2, b = 1 - DAMP * DT / 2;
+  for (let t = 0; t < steps; t++) {
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = y * N + x; if (!inside[i]) { nxt[i] = 0; continue; }
+      let lap = -(neigh[i] + robin[i]) * u[i];
+      if (ins(y - 1, x)) lap += u[i - N]; if (ins(y + 1, x)) lap += u[i + N];
+      if (ins(y, x - 1)) lap += u[i - 1]; if (ins(y, x + 1)) lap += u[i + 1];
+      nxt[i] = (2 * u[i] - b * prev[i] + c2 * lap) / a;
+    }
+    const t3 = prev; prev = u; u = nxt; nxt = t3;
+    tr[t] = u[RECV[0] * N + RECV[1]];
+    if (keepFrames && t % 4 === 0) frames.push(u.slice());
+  }
+  return {tr, frames};
+}
+
+// ---------------------------------------------------------------- tour (exact, by permutations)
+function tour(set, src) {
+  const S = SOURCES[src], R = RECV, P = {}, d = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]);
+  set.forEach(k => { P[k] = patchPoints(k); });                 // keyed by patch id, not by position
+  let best = Infinity, bestPath = null;
+  const perm = (arr, l) => { if (l === arr.length) { evalOrder(arr); return; } for (let i = l; i < arr.length; i++) { [arr[l], arr[i]] = [arr[i], arr[l]]; perm(arr, l + 1); [arr[l], arr[i]] = [arr[i], arr[l]]; } };
+  function evalOrder(ord) {
+    let cost = P[ord[0]].map(p => d(S, p)), back = [P[ord[0]].map(() => -1)];
+    for (let j = 1; j < ord.length; j++) {
+      const A2 = P[ord[j - 1]], B2 = P[ord[j]], nc = [], nb = [];
+      for (const q of B2) { let m = Infinity, mi = -1; A2.forEach((p, i) => { const v = cost[i] + d(p, q); if (v < m) { m = v; mi = i; } }); nc.push(m); nb.push(mi); }
+      cost = nc; back.push(nb);
+    }
+    const last = P[ord[ord.length - 1]];
+    let m = Infinity, mi = -1; last.forEach((p, i) => { const v = cost[i] + d(p, R); if (v < m) { m = v; mi = i; } });
+    if (m < best) { best = m; const path = [R]; let idx = mi; for (let j = ord.length - 1; j >= 0; j--) { path.push(P[ord[j]][idx]); idx = back[j][idx]; } path.push(S); bestPath = path.reverse(); }
+  }
+  perm(set.slice(), 0);
+  return {steps: best / STEP, path: bestPath};
+}
+
+// ---------------------------------------------------------------- drawing
+const cav = $("cav"), cx = cav.getContext("2d");
+let lastFrame = null, tourPath = null;
+function drawCavity(u) {
+  const img = cx.createImageData(N, N);
+  let m = 1e-9; if (u) for (let i = 0; i < NN; i++) m = Math.max(m, Math.abs(u[i]));
+  for (let i = 0; i < NN; i++) {
+    let r = 10, g = 12, b2 = 16;
+    if (inside[i]) {
+      const v = u ? Math.max(-1, Math.min(1, u[i] / m * 1.6)) : 0;
+      r = 40 + (v > 0 ? 200 * v : 0); g = 44 + 120 * Math.abs(v) * 0.6; b2 = 52 + (v < 0 ? -200 * v : 0);
+      let k = -1; for (let j = 0; j < K; j++) if (counts[j][i] > 0) { k = j; break; }
+      if (neigh[i] < 4) { if (k >= 0) { if (written.has(k)) { r = 245; g = 185; b2 = 70; } else { r = 120; g = 110; b2 = 90; } } else { r = 70; g = 74; b2 = 82; } }
+    }
+    img.data.set([r, g, b2, 255], 4 * i);
+  }
+  for (const [y, x, col] of [[...SOURCES[srcIdx], [120, 220, 255]], [...RECV, [255, 255, 255]]]) img.data.set([...col, 255], 4 * (y * N + x));
+  cx.putImageData(img, 0, 0);
+  if (tourPath) { cx.strokeStyle = "rgba(255,255,255,.85)"; cx.lineWidth = .5; cx.beginPath(); tourPath.forEach(([y, x], i) => i ? cx.lineTo(x + .5, y + .5) : cx.moveTo(x + .5, y + .5)); cx.stroke(); }
+}
+function plotLines(canvas, series, opts = {}) {
+  const ctx = canvas.getContext("2d"), W = canvas.width, H = canvas.height, css = getComputedStyle(document.body);
+  ctx.clearRect(0, 0, W, H);
+  const n = series[0].data.length; let lo = Infinity, hi = -Infinity;
+  for (const s of series) for (const v of s.data) if (isFinite(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  if (opts.lo !== undefined) lo = opts.lo; if (hi - lo < 1e-12) hi = lo + 1;
+  const X = t => 40 + (W - 50) * t / (n - 1), Y = v => H - 22 - (H - 34) * (v - lo) / (hi - lo);
+  if (opts.bands) for (const [a, b, col] of opts.bands) { ctx.fillStyle = col; ctx.fillRect(X(a), 8, X(b) - X(a), H - 30); }
+  if (opts.vlines) for (const [t, col, dash] of opts.vlines) { ctx.strokeStyle = col; ctx.setLineDash(dash ? [5, 4] : []); ctx.beginPath(); ctx.moveTo(X(t), 8); ctx.lineTo(X(t), H - 22); ctx.stroke(); }
+  ctx.setLineDash([]);
+  for (const s of series) { ctx.strokeStyle = s.col; ctx.lineWidth = 1.4; ctx.beginPath(); s.data.forEach((v, t) => { const yv = Y(isFinite(v) ? v : lo); t ? ctx.lineTo(X(t), yv) : ctx.moveTo(X(t), yv); }); ctx.stroke(); }
+  ctx.fillStyle = css.getPropertyValue("--dim"); ctx.font = "11px system-ui";
+  for (let t = 0; t <= n; t += 200) ctx.fillText(String(t), X(Math.min(t, n - 1)) - 8, H - 6);
+  ctx.fillText(opts.ylab || "", 2, 14);
+}
+
+// ---------------------------------------------------------------- actions
+const blankCache = {};
+function blank(src) { const key = K + ":" + src; return blankCache[key] || (blankCache[key] = simulate([], src, 1000, false).tr); }
+const singleCache = {};
+function single(k, src) { const key = K + ":" + src + ":" + k; return singleCache[key] || (singleCache[key] = simulate([k], src, 1000, false).tr); }
+const amber = () => getComputedStyle(document.body).getPropertyValue("--acc"), teal = () => getComputedStyle(document.body).getPropertyValue("--acc2");
+function status() { $("status").innerHTML = "written: " + (written.size ? [...written].sort((a, b) => a - b).join(", ") : "none") + " · source cyan · receiver white"; }
+
+async function ping() {
+  $("ping").disabled = true;
+  const bits = [...written], r = simulate(bits, srcIdx, 1000, true), b0 = blank(srcIdx);
+  const add = new Float64Array(1000); bits.forEach(k => { const s = single(k, srcIdx); for (let t = 0; t < 1000; t++) add[t] += s[t] - b0[t]; });
+  const diff = r.tr.map((v, t) => v - b0[t]);
+  plotLines($("echo"), [{data: add, col: teal()}, {data: diff, col: amber()}], {ylab: "echo change"});
+  for (const f of r.frames) { drawCavity(f); await new Promise(res => requestAnimationFrame(res)); }
+  $("ping").disabled = false;
+}
+async function measure() {
+  const set = [...written].sort((a, b) => a - b);
+  if (set.length < 1 || set.length > 7) { $("intnote").textContent = "write between 1 and 7 patches first"; return; }
+  $("intnote").textContent = `running ${1 << set.length} simulations…`; await new Promise(r => setTimeout(r, 20));
+  const I = new Float64Array(1000);
+  for (let m = 0; m < (1 << set.length); m++) {
+    const sub = set.filter((_, j) => m >> j & 1), sign = (set.length - sub.length) % 2 ? -1 : 1;
+    const tr = sub.length === 0 ? blank(srcIdx) : sub.length === 1 ? single(sub[0], srcIdx) : simulate(sub, srcIdx, 1000, false).tr;
+    for (let t = 0; t < 1000; t++) I[t] += sign * tr[t];
+  }
+  const tu = tour(set, srcIdx); tourPath = tu.path; drawCavity(lastFrame);
+  let pk = 0; for (const v of I) pk = Math.max(pk, Math.abs(v));
+  const logI = Array.from(I, v => Math.log10(Math.abs(v) / pk + 1e-17));
+  let onset = logI.findIndex(v => v > -6);
+  plotLines($("intc"), [{data: logI, col: amber()}], {lo: -17, ylab: "log10 |I| / peak", vlines: [[tu.steps, teal(), true], [onset, amber(), false]],
+    bands: [[Math.max(0, tu.steps - 40), tu.steps, "rgba(95,179,201,.13)"]]});
+  $("intnote").innerHTML = `order ${set.length} interaction of patches {${set.join(", ")}} · shortest tour <span class="stat">${tu.steps.toFixed(0)}</span> steps (dashed, drawn on the cavity) · measured onset (|I| &gt; 1e-6 of peak) <span class="stat">${onset}</span> · difference <span class="stat">${(tu.steps - onset).toFixed(0)}</span> steps. Before that the interaction is roundoff-small: below 1e-12 for the first part of the trace.`;
+}
+cav.addEventListener("click", e => {
+  const r = cav.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * N, y = (e.clientY - r.top) / r.height * N;
+  let best = -1, bd = 4;
+  for (let k = 0; k < K; k++) for (let i = 0; i < NN; i++) if (counts[k][i] > 0) { const d = Math.hypot(Math.floor(i / N) + .5 - y, i % N + .5 - x); if (d < bd) { bd = d; best = k; } }
+  if (best < 0) return;
+  written.has(best) ? written.delete(best) : written.add(best); tourPath = null; status(); drawCavity(lastFrame);
+});
+$("K").onchange = () => { K = +$("K").value; frac = K === 16 ? 0.5 : 1; written.clear(); tourPath = null; buildPatches(); status(); drawCavity(null); };
+$("src").onchange = () => { srcIdx = +$("src").value; tourPath = null; drawCavity(null); };
+$("ping").onclick = ping; $("inter").onclick = measure;
+$("clear").onclick = () => { written.clear(); tourPath = null; status(); drawCavity(null); };
+buildPatches(); written = new Set([1, 2]); status(); drawCavity(null);
+
+// ---------------------------------------------------------------- results
+fetch("results/discovery_k8.json").then(r => r.json()).then(D => {
+  let h = `<p class="note">Onset vs tour over all ${D.onset_vs_tour.n} interactions: r = <span class="stat">${D.onset_vs_tour.corr.toFixed(3)}</span>; onsets at most ${D.onset_vs_tour.max_early_steps.toFixed(0)} steps early → margin frozen at ${D.margin_frozen} steps.</p><table><tr><th>window</th><th>predicted degree</th><th>order needed (≥ 99 % held-out exact)</th><th>calibration states at prediction</th></tr>`;
+  for (const w of D.window_sweep) h += `<tr><td>[145, ${w.t1})</td><td>${w.predicted_degree}</td><td>${w.needed_order}</td><td>${w.calibration_states_at_prediction} / 256</td></tr>`;
+  $("k8").innerHTML = h + "</table>";
+});
+fetch("results/K16.json").then(r => r.ok ? r.json() : Promise.reject()).then(R => {
+  const d = R.decisions, o = R.by_order;
+  let h = `<p class="note">Window [${R.window.join(", ")}), predicted degree ${R.safe_degree}, ${R.calibration_states.toLocaleString()} of ${R.all_states.toLocaleString()} states calibrated, ${R.heldout} held-out states with ≥ 7 written patches.</p><table><tr><th>calibrated order</th><th>states</th><th>held-out exact</th><th>at noise</th><th>model error</th></tr>`;
+  for (const k in o) h += `<tr><td>${k}</td><td>${o[k].calibration_states.toLocaleString()}</td><td>${o[k].exact_noise_free} / ${R.heldout}</td><td>${o[k].exact_at_noise} / ${R.heldout}</td><td>${o[k].median_rel_model_error.toExponential(1)}</td></tr>`;
+  h += `</table><table style="margin-top:8px"><tr><th>decision</th><th></th></tr>`;
+  for (const [k, v] of Object.entries(d)) h += `<tr><td>${k.replace(/_/g, " ")}</td><td class="${v ? "pass" : "fail"}">${v ? "PASS" : "FAIL"}</td></tr>`;
+  $("k16").innerHTML = h + `</table><p class="note">Onsets of ${R.onsets.n} sampled interactions vs tours: r = ${R.onsets.corr.toFixed(3)}, at most ${R.onsets.max_early.toFixed(0)} steps early.</p>`;
+}).catch(() => { $("k16").textContent = "K = 16 run in progress — results/K16.json not published yet."; });
+</script>
+</body>
+</html>
