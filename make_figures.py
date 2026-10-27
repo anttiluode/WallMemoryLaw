@@ -115,8 +115,63 @@ def fig_sparse():
     plt.close(fig)
 
 
+def fig_stadium():
+    import os
+    if not os.path.exists("results/STADIUM.json"):
+        return
+    from wml.sparse import SparseMemory, predicted_log_size
+    import confirm_stadium as S
+    R = json.load(open("results/STADIUM.json"))
+    P, act, keep = S.load_plan()
+    cal = np.load(S.OUT + "calibration.npz")
+    table = {int(m): f for m, f in zip(cal["masks"], cal["F"])}
+    mem = SparseMemory(S.K, table)
+    one = np.median([np.linalg.norm(c) for m, c in zip(mem.masks, mem.coef) if bin(int(m)).count("1") == 1])
+    size = {int(m): np.linalg.norm(c) / one for m, c in zip(mem.masks, mem.coef)}
+    keepm = {sum(1 << q for q in s) for s in keep}
+    fig, ax = plt.subplots(1, 2, figsize=(13, 4.8))
+    for kept, col, lab in ((False, "#9aa0a8", "pruned away"), (True, "#e0a030", "kept (ε = 1e-3)")):
+        xs, ys = [], []
+        for s_, t in act.items():
+            if len(s_) < 2:
+                continue
+            m = sum(1 << q for q in s_)
+            if (m in keepm) != kept:
+                continue
+            xs.append(predicted_log_size(t, len(s_), P["t1"]))
+            ys.append(np.log10(max(size[m], 1e-12)))
+        ax[0].scatter(xs, ys, s=4, color=col, alpha=.6, label=lab)
+    lo, hi = -12, 2
+    ax[0].plot([lo, hi], [lo, hi], "k-", lw=.8, label="measured = predicted")
+    ax[0].axvline(-3, color="k", ls=":", lw=.8)
+    ax[0].axhline(-2, color="#e45756", ls="--", lw=.8, label="N4b limit (1e-2)")
+    ax[0].set_xlim(lo, hi); ax[0].set_ylim(-12.5, 1)
+    ax[0].set_xlabel("predicted log10 size (model fitted on the K=16 ellipse)")
+    ax[0].set_ylabel("measured log10 size / one-bit")
+    ax[0].set_title(f"Stadium, every active set (orders 2-10): r = {R['amplitude']['r']:.2f} above 1e-5", fontsize=10)
+    ax[0].legend(fontsize=8, markerscale=3)
+    names = ["all walls\n2^24", "degree ceiling\n(order 10)", "per-subset\ntour law", "amplitude-\npruned", "tour law\ncut at pairs", "additive"]
+    vals = [1 << 24, 4540386, R["models"]["tour_law"]["calibration_states"], R["models"]["pruned"]["calibration_states"],
+            R["models"]["tour_law_order2"]["calibration_states"], R["models"]["additive"]["calibration_states"]]
+    ex = [None, None, R["models"]["tour_law"]["exact"], R["models"]["pruned"]["exact"],
+          R["models"]["tour_law_order2"]["exact"], R["models"]["additive"]["exact"]]
+    cols = ["#9aa0a8", "#9aa0a8", "#2f7d32", "#2f7d32", "#e45756", "#e45756"]
+    ax[1].bar(range(6), vals, color=cols)
+    ax[1].set_yscale("log")
+    for i, (v, e) in enumerate(zip(vals, ex)):
+        ax[1].text(i, v * 1.4, f"{v:,}" + (f"\n{e}/300 exact" if e is not None else "\nnot simulated"), ha="center", fontsize=8)
+    ax[1].set_xticks(range(6)); ax[1].set_xticklabels(names, fontsize=8)
+    ax[1].set_ylim(5, 2e9)
+    ax[1].set_ylabel("calibration states (log)")
+    ax[1].set_title("What it costs to read a 24-bit wall in the stadium", fontsize=10)
+    fig.tight_layout()
+    fig.savefig("figures/stadium.png", dpi=110)
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     fig_geometry()
     fig_onsets()
     fig_k16()
     fig_sparse()
+    fig_stadium()

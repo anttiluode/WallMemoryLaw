@@ -34,7 +34,7 @@ code{font-size:13px}
 <body>
 <main>
 <h1>Wall Memory Law</h1>
-<p class="sub">An elliptical cavity whose wall patches can be written (a Robin spring, after Sol's <a href="https://github.com/anttiluode/Kavitaatio">Kavitaatio</a>). A ping from one focus reads the wall at the other. Several written patches <em>interact</em>: the echo is not the sum of their single echoes. A k-patch interaction can only arrive along a path that touches all k patches, so it switches on at that path's travel time. <b>The listening window therefore sets the polynomial degree of the memory, and the geometry predicts it.</b> Click wall patches to write them, ping, then measure their interaction.</p>
+<p class="sub">A cavity whose wall patches can be written (a Robin spring, after Sol's <a href="https://github.com/anttiluode/Kavitaatio">Kavitaatio</a>): an ellipse, or a chaotic stadium with 24 patches. A ping from a source reads the wall at the receiver. Several written patches <em>interact</em>: the echo is not the sum of their single echoes. A k-patch interaction can only arrive along a path that touches all k patches, so it switches on at that path's travel time. <b>The listening window therefore sets the polynomial degree of the memory, and the geometry predicts it.</b> Click wall patches to write them, ping, then measure their interaction.</p>
 
 <div class="row">
   <div class="card">
@@ -42,7 +42,7 @@ code{font-size:13px}
     <canvas id="cav" width="96" height="96"></canvas>
     <div class="bar">
       <label>cavity <select id="K"><option value="8">ellipse, 8 patches (Kavitaatio)</option><option value="16">ellipse, 16 patches with gaps</option><option value="24">stadium, 24 patches with gaps (chaotic)</option></select></label>
-      <label>source <select id="src"><option value="0">focus</option><option value="1">focus +8</option><option value="2">focus −8</option></select></label>
+      <label>source <select id="src"><option value="0">source 1</option><option value="1">source 2 (+8)</option><option value="2">source 3 (−8)</option></select></label>
     </div>
     <div class="bar">
       <button id="ping">ping</button>

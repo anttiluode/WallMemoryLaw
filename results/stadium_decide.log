@@ -1,0 +1,11 @@
+tour_law {'calibration_states': 7164, 'exact': 300, 'exact_at_noise': 300, 'search_failures': 0, 'model_failures': 0, 'median_rel_model_error': 4.814906283318921e-10} 1476s
+pruned {'calibration_states': 848, 'exact': 300, 'exact_at_noise': 300, 'search_failures': 0, 'model_failures': 0, 'median_rel_model_error': 9.378487374933132e-05} 324s
+tour_law_order2 {'calibration_states': 285, 'exact': 56, 'exact_at_noise': 55, 'search_failures': 0, 'model_failures': 244, 'median_rel_model_error': 0.06615747167678188} 217s
+additive {'calibration_states': 25, 'exact': 0, 'exact_at_noise': 0, 'search_failures': 0, 'model_failures': 300, 'median_rel_model_error': 0.41878289342475594} 49s
+{
+ "N1_tour_law_exact": true,
+ "N2_pruned_exact": true,
+ "N3_inactive_negligible": true,
+ "N4a_amplitude_transfers": true,
+ "N4b_pruning_safe": true
+} {"n": 1380, "r": 0.9169156128695278, "median_bias_dex": -0.7127147067415427, "mad_dex": 0.7127147067415427, "pruned_away": 6316, "max_pruned_away_size": 0.0006064872020772464, "pruned_away_above_1e-2": 0} {"n": 40, "max_rel_size": 2.0813955201546443e-08}

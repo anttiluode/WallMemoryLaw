@@ -1,7 +1,10 @@
 # Wall Memory Law
 
 **The listening window sets the polynomial degree of a writable-wall cavity memory,
-and the scattering geometry predicts which interactions it contains.**
+and the scattering geometry predicts which interactions it contains.** In a chaotic
+stadium with 24 writable patches (16,777,216 walls), the law picked 848 calibration
+states out of 16.7 million in advance, and those 848 read every held-out 24-bit wall
+exactly, also at noise. Two pre-registrations; the second passed all five tests.
 
 Sol's [Kavitaatio](https://github.com/anttiluode/Kavitaatio) built an elliptical
 cavity whose wall patches can be *written* (a Robin spring) and *read* by a ping from
@@ -86,20 +89,58 @@ measured K = 16 interaction by its *own* tour gives a clean wall:
 This per-subset law is the one to pre-register next. It is post hoc here, chosen after
 seeing P3 fail.
 
+## Second pre-registered test: a chaotic stadium, 24 patches
+
+[PREREG_STADIUM.md](PREREG_STADIUM.md), pushed as `9a1ce6b` before any stadium wall
+was simulated. It tests the two rules found post hoc above in a geometry where they
+were not fitted:
+
+- a Bunimovich stadium, which has no foci and chaotic rays;
+- source and receiver off every symmetry axis;
+- 24 patches with gaps;
+- a window set by a rule, [155, 283);
+- 300 held-out walls with random bits (about 12 written patches each).
+
+2^24 walls is about six days of simulation, so the law is the only way in. Decoding
+uses descent over 1- and 2-bit flips. A miss would be labelled a search failure or a
+model failure; there were none.
+
+| | claim | result |
+|---|---|---|
+| N1 | the per-subset tour law (**7,164** states, 0.043 %) is exact | **PASS**: 300/300, 300/300 at noise, model error 5e-10 |
+| N2 | the amplitude-pruned model (**848** states, 0.005 %) is exact | **PASS**: 300/300, 300/300 at noise, model error 9e-5 |
+| N3 | tour-inactive sets are empty | **PASS**: all 16 inactive pairs and 24 boundary triples, measured directly, ≤ **2e-8** of a one-bit response (rule ≤ 1e-5) |
+| N4a | the amplitude model transfers to the new shape | **PASS**: r = 0.92 over 1,380 active sets |
+| N4b | pruning is safe | **PASS**: 6,316 sets pruned away, largest measures 6e-4 (rule < 1e-2) |
+
+The memory is strongly non-additive here, so this is not an easy pass. Cutting the tour
+law at pairs (285 states) decodes 56/300, and the additive model (25 states) decodes
+0/300. The order-level ceiling would have needed 4,540,386 states.
+
+![stadium](figures/stadium.png)
+
+Post hoc observation: in the stadium, the amplitude model fitted on the ellipse
+behaved as an **upper envelope**. Only 1 of 7,139 active sets measured above its
+prediction, and that one by 0.00 dex; the median sits 2 decades below
+(`results/stadium_envelope_posthoc.json`). That is why pruning was conservative rather
+than lucky. Whether it is an envelope in general, and not just for this pair of
+geometries, is untested.
+
 ## What it means
 
 - Kavitaatio's memory is strongly non-additive, but the non-additivity is
   **scheduled**. Which walls can talk to each other, and when, is fixed by the cavity's
   shape and the wave speed.
 - For a window of length t₁, the calibration cost is the number of patch sets whose
-  scattering tour fits in t₁. It is computable before any measurement, and here it is
-  far below 2^K.
+  scattering tour fits in t₁. It is computable before any measurement: 7,164 of 16.7
+  million in the stadium. With an amplitude model on top it is 848.
 - In Williams' TIME ⊆ SPACE construction (the TheComb thread), *bounded degree* is what
   makes reuse cheap. Here, finite wave speed supplies bounded degree for free. This is
   an analogy of structure, not a complexity result.
-- Inside the active set, interactions grow roughly a decade per 10 steps of lead time
-  (see the figure). An amplitude model of that growth would predict the *needed* order,
-  not just the ceiling. That is the honest fix for P3, and it is not done.
+- Inside the active set, interactions grow about a decade per 10 steps of lead time and
+  shrink about 0.75 decade per extra patch. That amplitude model, fitted on one
+  geometry, predicted what another geometry needs (stadium N2, N4). This was the
+  honest fix for P3.
 
 ## Ledger
 
@@ -112,9 +153,14 @@ seeing P3 fail.
 - Per-subset law, post hoc, at K = 8 and K = 16: no predicted-inactive interaction above
   the float32 floor; 219-state calibration decodes all 300 held-out 16-bit walls
 
+- Stadium, K = 24, pre-registered: per-subset tour law exact (N1), amplitude-pruned
+  848-state model exact (N2), tour-inactive sets ≤ 2e-8 (N3), amplitude model transfers
+  (N4a, r = 0.92), pruning safe (N4b)
+
 **Failed**
 - P3: the needed order (2) was below the predicted range (4–6). The order-level law
-  over-pays.
+  over-pays. Superseded by the per-subset and amplitude rules, which were then tested
+  on the stadium.
 
 **Corrected on the way**
 - "Exactly zero before the tour" (my claim in chat) is wrong. Precursors are tiny but
@@ -123,9 +169,16 @@ seeing P3 fail.
   mirror symmetry, not the memory. One source moved 8 cells off-axis gives rank 8 (see
   the chat notes this repo grew from).
 
+**Corrected on the way (stadium)**
+- The page placed the stadium's sources one cell off: Python rounds half to even,
+  JavaScript rounds halves up. The page now uses Python's integers (JS vs Python 3e-15).
+- The single-flip decoder recovered only 127/300 on K = 16 where exhaustive search
+  got 300/300 (a search failure). Adding pair flips and restarts fixed it before the
+  stadium was frozen.
+
 **Not done**
-- An amplitude model for the needed order; a pre-registered test of the per-subset law;
-  grid refinement; other cavity shapes; physical units.
+- Grid refinement; physical units; a third shape; whether the amplitude model is an
+  upper envelope in general; a physical cavity.
 
 ## Run it
 
@@ -137,10 +190,17 @@ python confirm_k16.py calibrate    # K = 16: 14,893 states x 3 sources (~25 min)
 python confirm_k16.py heldout
 python confirm_k16.py onsets
 python confirm_k16.py decide       # -> results/K16.json
+python confirm_stadium.py plan       # stadium: geometry only (~1 min)
+python confirm_stadium.py calibrate  # 7,164 states x 3 sources (~15 min)
+python confirm_stadium.py heldout
+python confirm_stadium.py inactive
+python confirm_stadium.py decide     # -> results/STADIUM.json (~35 min, mostly decoding)
 python make_figures.py
 ```
 
-`wml/cavity.py` is the cavity, `wml/law.py` the tours (Held-Karp over patches), Möbius
-calibration and exhaustive decoding. Post-hoc numbers are in
+`wml/cavity.py` is the cavity (ellipse or stadium), `wml/law.py` the tours (Held-Karp
+over patches), Möbius calibration and exhaustive decoding. `wml/sparse.py` holds the
+per-subset law (active sets enumerated level by level), the amplitude model, the
+sparse memory model and the flip decoder. Post-hoc numbers are in
 `results/k16_sparse_posthoc.json`, `results/k16_interaction_sizes.json` and
 `results/k8_sparse_posthoc.json`.
