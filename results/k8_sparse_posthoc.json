@@ -1,0 +1,50 @@
+[
+ {
+  "t1": 245,
+  "active": 64,
+  "calibration_states": 65,
+  "max_inactive": 8.274332235637079e-07,
+  "min_active_order2plus": 1.602548058196281e-07,
+  "max_active": 0.5165271277258217
+ },
+ {
+  "t1": 295,
+  "active": 128,
+  "calibration_states": 129,
+  "max_inactive": 4.411369618818429e-07,
+  "min_active_order2plus": 1.1462216927031967e-07,
+  "max_active": 0.5171517678046815
+ },
+ {
+  "t1": 345,
+  "active": 203,
+  "calibration_states": 204,
+  "max_inactive": 3.1936155240949717e-07,
+  "min_active_order2plus": 1.0235632133313056e-07,
+  "max_active": 0.7722916919588874
+ },
+ {
+  "t1": 395,
+  "active": 246,
+  "calibration_states": 247,
+  "max_inactive": 2.578463030346227e-07,
+  "min_active_order2plus": 1.0194219375777935e-07,
+  "max_active": 0.8720668948829667
+ },
+ {
+  "t1": 445,
+  "active": 254,
+  "calibration_states": 255,
+  "max_inactive": 2.201024339057686e-07,
+  "min_active_order2plus": 1.3765740045237454e-07,
+  "max_active": 0.8511839820726599
+ },
+ {
+  "t1": 545,
+  "active": 255,
+  "calibration_states": 256,
+  "max_inactive": 0.0,
+  "min_active_order2plus": 0.002622314102017161,
+  "max_active": 0.9637748425228342
+ }
+]

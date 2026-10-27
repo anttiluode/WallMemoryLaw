@@ -86,7 +86,37 @@ def fig_k16():
     plt.close(fig)
 
 
+def fig_sparse():
+    """Post hoc: every k16 interaction (orders 2-6) by its own tour vs the window."""
+    from wml import coefficients_from_calibration
+    import confirm_k16 as C
+    cal = np.load("results/k16_calibration.npz")
+    F = C.features(cal["Y"])
+    table = {m: F[i] for i, m in enumerate(cal["masks"].tolist())}
+    coef = coefficients_from_calibration(table, 16, 6)
+    one = np.median([np.linalg.norm(coef[1 << k]) for k in range(16)])
+    T = np.load("results/k16_tours.npy").min(0)
+    pop = np.array([bin(m).count("1") for m in range(1 << 16)])
+    fig, ax = plt.subplots(figsize=(8.5, 4.6))
+    for k in range(2, 7):
+        m = np.flatnonzero(pop == k)
+        sz = np.linalg.norm(coef[m], axis=1) / one
+        ax.scatter(T[m] - 40 - C.T1, np.maximum(sz, 1e-9), s=4, color=ORDER_COL[k - 1], alpha=.6, label=f"order {k}")
+    ax.axvline(0, color="k", lw=.8)
+    ax.axhline(np.finfo(np.float32).eps * 30, color="k", ls=":", lw=.8)
+    ax.text(2, 3e-6, "float32 storage floor", fontsize=8)
+    ax.set_yscale("log")
+    ax.set_xlabel("own tour − 40 − window end (steps)   ← predicted active | predicted inactive →")
+    ax.set_ylabel("interaction size / one-bit response")
+    ax.set_title("K = 16, window [145, 230): every interaction, placed by its own scattering tour (post hoc)", fontsize=10)
+    ax.legend(fontsize=8, markerscale=3)
+    fig.tight_layout()
+    fig.savefig("figures/sparse_law.png", dpi=110)
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     fig_geometry()
     fig_onsets()
     fig_k16()
+    fig_sparse()

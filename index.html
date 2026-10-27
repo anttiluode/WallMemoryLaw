@@ -168,7 +168,7 @@ function plotLines(canvas, series, opts = {}) {
   ctx.setLineDash([]);
   for (const s of series) { ctx.strokeStyle = s.col; ctx.lineWidth = 1.4; ctx.beginPath(); s.data.forEach((v, t) => { const yv = Y(isFinite(v) ? v : lo); t ? ctx.lineTo(X(t), yv) : ctx.moveTo(X(t), yv); }); ctx.stroke(); }
   ctx.fillStyle = css.getPropertyValue("--dim"); ctx.font = "11px system-ui";
-  for (let t = 0; t <= n; t += 200) ctx.fillText(String(t), X(Math.min(t, n - 1)) - 8, H - 6);
+  for (let t = 0; t < n; t += 200) ctx.fillText(String(t), X(t) - 8, H - 6);
   ctx.fillText(opts.ylab || "", 2, 14);
 }
 
@@ -232,7 +232,10 @@ fetch("results/K16.json").then(r => r.ok ? r.json() : Promise.reject()).then(R =
   for (const k in o) h += `<tr><td>${k}</td><td>${o[k].calibration_states.toLocaleString()}</td><td>${o[k].exact_noise_free} / ${R.heldout}</td><td>${o[k].exact_at_noise} / ${R.heldout}</td><td>${o[k].median_rel_model_error.toExponential(1)}</td></tr>`;
   h += `</table><table style="margin-top:8px"><tr><th>decision</th><th></th></tr>`;
   for (const [k, v] of Object.entries(d)) h += `<tr><td>${k.replace(/_/g, " ")}</td><td class="${v ? "pass" : "fail"}">${v ? "PASS" : "FAIL"}</td></tr>`;
-  $("k16").innerHTML = h + `</table><p class="note">Onsets of ${R.onsets.n} sampled interactions vs tours: r = ${R.onsets.corr.toFixed(3)}, at most ${R.onsets.max_early.toFixed(0)} steps early.</p>`;
+  $("k16").innerHTML = h + `</table><p class="note">Onsets of ${R.onsets.n} sampled interactions vs tours: r = ${R.onsets.corr.toFixed(3)}, at most ${R.onsets.max_early.toFixed(0)} steps early.</p><div id="sparse"></div>`;
+  return fetch("results/k16_sparse_posthoc.json").then(r => r.json()).then(S => {
+    $("sparse").innerHTML = `<p class="note"><b>Post hoc, the sharper law:</b> calibrate only the patch sets whose <em>own</em> scattering tour fits the window, plus their sub-states: <span class="stat">${S.calibration_states}</span> states (0.33 % of 65,536) → <span class="stat">${S.exact}/300</span> exact, ${S.exact_noise}/300 at noise, model error ${S.model_error.toExponential(1)}. Every set predicted inactive sits on the float32 floor (≤ ${Math.max(...Object.values(S.max_inactive_by_order)).toExponential(0)} of a one-bit response).</p>`;
+  });
 }).catch(() => { $("k16").textContent = "K = 16 run in progress — results/K16.json not published yet."; });
 </script>
 </body>

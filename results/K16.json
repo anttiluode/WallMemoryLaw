@@ -1,0 +1,71 @@
+{
+ "K": 16,
+ "fraction": 0.5,
+ "window": [
+  145,
+  230
+ ],
+ "margin": 40.0,
+ "safe_degree": 6,
+ "calibration_states": 14893,
+ "all_states": 65536,
+ "heldout": 300,
+ "features": 255,
+ "noise_sigma": 0.0029791214667595238,
+ "by_order": {
+  "1": {
+   "calibration_states": 17,
+   "exact_noise_free": 24,
+   "exact_at_noise": 25,
+   "median_rel_model_error": 0.08898248526908306,
+   "mean_wrong_bits_noise_free": 3.3466666666666667
+  },
+  "2": {
+   "calibration_states": 137,
+   "exact_noise_free": 300,
+   "exact_at_noise": 300,
+   "median_rel_model_error": 0.0008923233919641848,
+   "mean_wrong_bits_noise_free": 0.0
+  },
+  "3": {
+   "calibration_states": 697,
+   "exact_noise_free": 300,
+   "exact_at_noise": 300,
+   "median_rel_model_error": 4.278743488746953e-06,
+   "mean_wrong_bits_noise_free": 0.0
+  },
+  "4": {
+   "calibration_states": 2517,
+   "exact_noise_free": 300,
+   "exact_at_noise": 300,
+   "median_rel_model_error": 6.388942364484624e-06,
+   "mean_wrong_bits_noise_free": 0.0
+  },
+  "5": {
+   "calibration_states": 6885,
+   "exact_noise_free": 300,
+   "exact_at_noise": 300,
+   "median_rel_model_error": 7.156202101699675e-06,
+   "mean_wrong_bits_noise_free": 0.0
+  },
+  "6": {
+   "calibration_states": 14893,
+   "exact_noise_free": 300,
+   "exact_at_noise": 300,
+   "median_rel_model_error": 5.319574807057169e-06,
+   "mean_wrong_bits_noise_free": 0.0
+  }
+ },
+ "needed_order": 2,
+ "onsets": {
+  "n": 60,
+  "corr": 0.9989263441777473,
+  "max_early": 37.74230059415808,
+  "median_early": 22.555771898125357
+ },
+ "decisions": {
+  "P1_safe_degree_is_exact": true,
+  "P2_onsets_follow_tours": true,
+  "P3_needed_order_in_range": false
+ }
+}
