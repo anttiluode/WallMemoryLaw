@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+results/k8_tables.npz
+results/k16_calibration.npz
