@@ -41,7 +41,7 @@ code{font-size:13px}
     <h3>cavity · click the wall to write a patch</h3>
     <canvas id="cav" width="96" height="96"></canvas>
     <div class="bar">
-      <label>patches <select id="K"><option value="8">8 (full sectors, Kavitaatio)</option><option value="16">16 (half sectors, gaps)</option></select></label>
+      <label>cavity <select id="K"><option value="8">ellipse, 8 patches (Kavitaatio)</option><option value="16">ellipse, 16 patches with gaps</option><option value="24">stadium, 24 patches with gaps (chaotic)</option></select></label>
       <label>source <select id="src"><option value="0">focus</option><option value="1">focus +8</option><option value="2">focus −8</option></select></label>
     </div>
     <div class="bar">
@@ -64,20 +64,33 @@ code{font-size:13px}
   <div class="card"><h3>K = 8: window vs degree (all 256 states known)</h3><div id="k8"></div></div>
   <div class="card"><h3>K = 16: pre-registered test (65,536 states, never all simulated)</h3><div id="k16">loading…</div></div>
 </div>
+<div class="card" style="margin-top:16px"><h3>Stadium, 24 patches: second pre-registered test (16,777,216 walls, new shape, nothing tuned on it)</h3><div id="st">loading…</div></div>
 <p class="note">Code, pre-registration and receipts: <a href="https://github.com/anttiluode/WallMemoryLaw">github.com/anttiluode/WallMemoryLaw</a>. Same discretisation as Kavitaatio (96×96, c = 0.65, dt = 0.5, damping 0.006, Robin 0.28 per face).</p>
 </main>
 
 <script>
 "use strict";
 const N = 96, C = 0.65, DT = 0.5, DAMP = 0.006, KAPPA = 0.28, SIG = 1.55, CEN = (N - 1) / 2, A = 36, B = 27, STEP = C * DT;
-const F = Math.sqrt(A * A - B * B);
-const SOURCES = [[Math.round(CEN), Math.round(CEN - F)], [Math.round(CEN + 8), Math.round(CEN - F)], [Math.round(CEN - 8), Math.round(CEN - F)]];
-const RECV = [Math.round(CEN), Math.round(CEN + F)];
+const F = Math.sqrt(A * A - B * B), SL = 18, SR = 22;           // ellipse foci; stadium half-length and cap radius
+const GEOM = {
+  ellipse: {sources: [[Math.round(CEN), Math.round(CEN - F)], [Math.round(CEN + 8), Math.round(CEN - F)], [Math.round(CEN - 8), Math.round(CEN - F)]],
+            recv: [Math.round(CEN), Math.round(CEN + F)],
+            inside: (X, Y) => (X / A) ** 2 + (Y / B) ** 2 <= 1, angle: (X, Y) => Math.atan2(Y / B, X / A)},
+  // integers exactly as Python's round() gives them (half to even), so page and benchmark agree
+  stadium: {sources: [[50, 18], [58, 18], [42, 18]], recv: [54, 76],
+            inside: (X, Y) => (Math.abs(X) <= SL && Math.abs(Y) <= SR) || (Math.abs(X) - SL) ** 2 + Y * Y <= SR * SR,
+            angle: (X, Y) => Math.atan2(Y / SR, X / (SL + SR))}};
+let shape = "ellipse", SOURCES = GEOM.ellipse.sources, RECV = GEOM.ellipse.recv;
 const NN = N * N, $ = id => document.getElementById(id);
 const inside = new Uint8Array(NN), neigh = new Float64Array(NN);
-for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const X = x - CEN, Y = y - CEN; inside[y * N + x] = (X / A) ** 2 + (Y / B) ** 2 <= 1 ? 1 : 0; }
+function buildShape() {
+  const g = GEOM[shape]; SOURCES = g.sources; RECV = g.recv;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) inside[y * N + x] = g.inside(x - CEN, y - CEN) ? 1 : 0;
+  neigh.fill(0);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (inside[y * N + x]) neigh[y * N + x] = ins(y - 1, x) + ins(y + 1, x) + ins(y, x - 1) + ins(y, x + 1);
+}
 const ins = (y, x) => y >= 0 && y < N && x >= 0 && x < N && inside[y * N + x];
-for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (inside[y * N + x]) neigh[y * N + x] = ins(y - 1, x) + ins(y + 1, x) + ins(y, x - 1) + ins(y, x + 1);
+buildShape();
 
 let K = 8, frac = 1, counts = [], written = new Set(), srcIdx = 0;
 function buildPatches() {
@@ -85,7 +98,7 @@ function buildPatches() {
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     const i = y * N + x; if (!inside[i]) continue;
     const missing = 4 - neigh[i]; if (missing <= 0) continue;
-    const ang = Math.atan2((y - CEN) / B, (x - CEN) / A), pos = (ang + Math.PI) / (2 * Math.PI) * K;
+    const ang = GEOM[shape].angle(x - CEN, y - CEN), pos = (ang + Math.PI) / (2 * Math.PI) * K;
     const k = ((Math.floor(pos) % K) + K) % K, f = pos - Math.floor(pos);
     if (Math.abs(f - 0.5) <= frac / 2 + 1e-12) counts[k][i] = missing;
   }
@@ -214,7 +227,9 @@ cav.addEventListener("click", e => {
   if (best < 0) return;
   written.has(best) ? written.delete(best) : written.add(best); tourPath = null; status(); drawCavity(lastFrame);
 });
-$("K").onchange = () => { K = +$("K").value; frac = K === 16 ? 0.5 : 1; written.clear(); tourPath = null; buildPatches(); status(); drawCavity(null); };
+$("K").onchange = () => { K = +$("K").value; frac = K === 8 ? 1 : 0.5; shape = K === 24 ? "stadium" : "ellipse"; buildShape();
+  for (const key in blankCache) delete blankCache[key]; for (const key in singleCache) delete singleCache[key];
+  written.clear(); tourPath = null; buildPatches(); status(); drawCavity(null); };
 $("src").onchange = () => { srcIdx = +$("src").value; tourPath = null; drawCavity(null); };
 $("ping").onclick = ping; $("inter").onclick = measure;
 $("clear").onclick = () => { written.clear(); tourPath = null; status(); drawCavity(null); };
@@ -237,6 +252,15 @@ fetch("results/K16.json").then(r => r.ok ? r.json() : Promise.reject()).then(R =
     $("sparse").innerHTML = `<p class="note"><b>Post hoc, the sharper law:</b> calibrate only the patch sets whose <em>own</em> scattering tour fits the window, plus their sub-states: <span class="stat">${S.calibration_states}</span> states (0.33 % of 65,536) → <span class="stat">${S.exact}/300</span> exact, ${S.exact_noise}/300 at noise, model error ${S.model_error.toExponential(1)}. Every set predicted inactive sits on the float32 floor (≤ ${Math.max(...Object.values(S.max_inactive_by_order)).toExponential(0)} of a one-bit response).</p>`;
   });
 }).catch(() => { $("k16").textContent = "K = 16 run in progress — results/K16.json not published yet."; });
+fetch("results/STADIUM.json").then(r => r.ok ? r.json() : Promise.reject()).then(R => {
+  const nice = {tour_law: "per-subset tour law", pruned: "amplitude-pruned (ε = 1e-3)", tour_law_order2: "tour law cut at pairs", additive: "additive (singles only)"};
+  let h = `<p class="note">Window [${R.window.join(", ")}), 300 held-out walls with random bits (~12 written patches each), decoded by 1- and 2-flip descent. Order-level ceiling would need 4,540,386 states.</p><table><tr><th>model</th><th>calibration states</th><th>share of 2^24</th><th>held-out exact</th><th>at noise</th><th>misses: search / model</th></tr>`;
+  for (const [k, m] of Object.entries(R.models)) h += `<tr><td>${nice[k] || k}</td><td>${m.calibration_states.toLocaleString()}</td><td>${(100 * m.calibration_states / R.all_states).toFixed(3)} %</td><td>${m.exact} / ${R.heldout}</td><td>${m.exact_at_noise} / ${R.heldout}</td><td>${m.search_failures} / ${m.model_failures}</td></tr>`;
+  h += `</table><table style="margin-top:8px"><tr><th>decision</th><th></th></tr>`;
+  for (const [k, v] of Object.entries(R.decisions)) h += `<tr><td>${k.replace(/_/g, " ")}</td><td class="${v ? "pass" : "fail"}">${v ? "PASS" : "FAIL"}</td></tr>`;
+  const a = R.amplitude;
+  $("st").innerHTML = h + `</table><p class="note">Tour-inactive sets (all 16 inactive pairs + 24 boundary triples, measured directly): largest ${R.inactive.max_rel_size.toExponential(1)} of a one-bit response. Amplitude model across geometry: r = ${a.r.toFixed(2)} over ${a.n} active sets, median bias ${a.median_bias_dex.toFixed(2)} dex; ${a.pruned_away} sets pruned away, largest measures ${a.max_pruned_away_size.toExponential(1)}.</p>`;
+}).catch(() => { $("st").textContent = "stadium run in progress — results/STADIUM.json not published yet."; });
 </script>
 </body>
 </html>
